@@ -7,12 +7,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-)
+	"os"
 
-type User struct {
-	name  string
-	email string
-}
+	"github.com/akamensky/argparse"
+)
 
 func make_get_request(url string) {
 	// GET Request
@@ -47,23 +45,19 @@ func make_post_request(url string, json_file_path string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	user2 := User{}
-	json.Unmarshal(content, &user2)
+	user := map[string]string{}
+	json.Unmarshal(content, &user)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//Encode the data
-	postBody, _ := json.Marshal(user2)
+	postBody, _ := json.Marshal(user)
 	responseBody := bytes.NewBuffer(postBody)
-	//Leverage Go's HTTP Post function to make request
-	resp, err := http.Post("https://postman-echo.com/post", "application/json", responseBody)
-	//Handle Error
+	resp, err := http.Post(url, "application/json", responseBody)
 	if err != nil {
 		log.Fatalf("An Error Occured %v", err)
 	}
 	defer resp.Body.Close()
-	//Read the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalln(err)
@@ -74,23 +68,21 @@ func make_post_request(url string, json_file_path string) {
 }
 
 func main() {
-	fmt.Println("Type of request: ")
+	// Create new parser object
+	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	request_type := parser.String("r", "request_type", &argparse.Options{Required: true, Help: "Type of API Request"})
+	url := parser.String("u", "url", &argparse.Options{Required: true, Help: "URL of API Request"})
+	json_file := parser.String("j", "json_file", &argparse.Options{Required: false, Help: "JSON File Path for POST request"})
 
-	// var then variable name then variable type
-	var request_type string
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
 
-	// Taking input from user
-	fmt.Scanln(&request_type)
-	if request_type == "GET" {
-		var url string
-		fmt.Scanln(&url)
-		make_get_request(url)
-	} else if request_type == "POST" {
-		var url string
-		var json_file_path string
-		fmt.Scanln(&url)
-		fmt.Scanln(&json_file_path)
-		make_post_request(url, json_file_path)
+	if *request_type == "GET" {
+		make_get_request(*url)
+	} else if *request_type == "POST" {
+		make_post_request(*url, *json_file)
 	}
 
 }
