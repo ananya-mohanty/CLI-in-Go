@@ -14,36 +14,16 @@ import (
 	"github.com/akamensky/argparse"
 )
 
-func make_get_request(url string, custom_headers *[]string) {
-
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
+func make_get_request(url string) *http.Request {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	for i := 0; i < len(*custom_headers); i++ {
-		curr_header := strings.Split((*custom_headers)[i], "=")
-		req.Header.Set(curr_header[0], curr_header[1])
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	sb := string(body)
-	log.Printf(sb)
+	return req
 }
 
-func make_post_request(url string, json_file_path string, custom_headers *[]string) {
+func make_post_request(url string, json_file_path string) *http.Request {
 
 	// Read and parse JSON File for POST Body
 	content, err := ioutil.ReadFile(json_file_path)
@@ -53,24 +33,27 @@ func make_post_request(url string, json_file_path string, custom_headers *[]stri
 	user := map[string]string{}
 	json.Unmarshal(content, &user)
 
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
+	// POST Request
+
 	postBody, _ := json.Marshal(user)
 	responseBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest("POST", url, responseBody)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	return req
+}
+
+func set_custom_headers(req *http.Request, custom_headers *[]string) {
+
+	// Adding custom headers passed by user
 	for i := 0; i < len(*custom_headers); i++ {
 		curr_header := strings.Split((*custom_headers)[i], "=")
 		req.Header.Set(curr_header[0], curr_header[1])
 	}
-
-	if err != nil {
-		log.Fatal(err)
+	client := &http.Client{
+		Timeout: time.Second * 10,
 	}
-
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalln(err)
@@ -80,11 +63,10 @@ func make_post_request(url string, json_file_path string, custom_headers *[]stri
 	if err != nil {
 		log.Fatalln(err)
 	}
-	sb := string(body)
-	log.Printf(sb)
+	output_body := string(body)
+	log.Printf(output_body)
 
 }
-
 func main() {
 	parser := argparse.NewParser("print", "Prints provided string to stdout")
 
@@ -99,9 +81,10 @@ func main() {
 	}
 
 	if *request_type == "GET" {
-		make_get_request(*url, custom_headers)
+		req := make_get_request(*url)
+		set_custom_headers(req, custom_headers)
 	} else if *request_type == "POST" {
-		make_post_request(*url, *json_file, custom_headers)
+		req := make_post_request(*url, *json_file)
+		set_custom_headers(req, custom_headers)
 	}
-
 }
